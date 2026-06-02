@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Calculator PWA</title>
+
+<!-- PWA META -->
+<meta name="theme-color" content="#1976d2">
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#f5f5f5;
+    padding-top:75px;
+}
+
+.total-bar{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    background:#222;
+    color:#fff;
+    text-align:center;
+    padding:15px;
+    font-size:22px;
+    font-weight:bold;
+    z-index:9999;
+}
+
+.container{
+    max-width:800px;
+    margin:auto;
+    padding:10px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:#fff;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+th{
+    background:#1976d2;
+    color:white;
+}
+
+th,td{
+    border:1px solid #ddd;
+    padding:8px;
+    text-align:center;
+}
+
+input{
+    width:100%;
+    padding:10px;
+    border:1px solid #ccc;
+    border-radius:5px;
+    text-align:center;
+}
+
+.output{
+    font-weight:bold;
+    color:green;
+}
+
+.add-btn{
+    width:100%;
+    padding:12px;
+    border:none;
+    background:green;
+    color:white;
+    font-size:18px;
+    border-radius:8px;
+    margin-top:10px;
+}
+
+.delete-btn{
+    background:red;
+    color:white;
+    border:none;
+    padding:8px;
+    border-radius:5px;
+}
+
+@media(max-width:600px){
+    input{font-size:14px;}
+}
+</style>
+</head>
+
+<body>
+
+<div class="total-bar">
+    Total Taka: <span id="totalSum">0</span>
+</div>
+
+<div class="container">
+
+<table>
+<thead>
+<tr>
+<th>Qty</th>
+<th>Value</th>
+<th>Taka</th>
+<th>❌</th>
+</tr>
+</thead>
+
+<tbody id="tableBody"></tbody>
+</table>
+
+<button class="add-btn" onclick="addRow()">➕ Add Row</button>
+
+</div>
+
+<script>
+let rows = JSON.parse(localStorage.getItem("rows")) || [
+    {qty:1,value:""}
+];
+
+function save(){
+    localStorage.setItem("rows",JSON.stringify(rows));
+}
+
+function calc(){
+    let total = 0;
+
+    rows.forEach(r=>{
+        let v = (Number(r.qty)||0) * (Number(r.value)||0);
+        total += v;
+        r.output = v;
+    });
+
+    document.getElementById("totalSum").innerText = total;
+    save();
+}
+
+function render(){
+    let tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    rows.forEach((r,i)=>{
+
+        let out = (Number(r.qty)||0)*(Number(r.value)||0);
+
+        tbody.innerHTML += `
+        <tr>
+            <td><input type="number" value="${r.qty}"
+                oninput="updateQty(${i},this.value)"></td>
+
+            <td><input type="number" value="${r.value}"
+                oninput="updateValue(${i},this.value)"></td>
+
+            <td class="output">${out}</td>
+
+            <td><button class="delete-btn" onclick="del(${i})">❌</button></td>
+        </tr>`;
+    });
+
+    calc();
+}
+
+function updateQty(i,v){
+    rows[i].qty = v;
+    render();
+}
+
+function updateValue(i,v){
+    rows[i].value = v;
+    render();
+}
+
+function addRow(){
+    rows.push({qty:1,value:""});
+    render();
+}
+
+function del(i){
+    rows.splice(i,1);
+    if(rows.length===0) rows.push({qty:1,value:""});
+    render();
+}
+
+/* =========================
+   PWA (INLINE MANIFEST + SW)
+   ========================= */
+
+// MANIFEST (virtual file)
+const manifest = {
+    name: "Calculator PWA",
+    short_name: "Calc",
+    start_url: ".",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#1976d2",
+    icons: [
+        {
+            src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB...",
+            sizes: "192x192",
+            type: "image/png"
+        }
+    ]
+};
+
+const blob = new Blob([JSON.stringify(manifest)], {type:"application/json"});
+const manifestURL = URL.createObjectURL(blob);
+const link = document.createElement("link");
+link.rel = "manifest";
+link.href = manifestURL;
+document.head.appendChild(link);
+
+// SERVICE WORKER (inline)
+if('serviceWorker' in navigator){
+
+    const swCode = `
+    self.addEventListener('install', e=>{
+        self.skipWaiting();
+    });
+
+    self.addEventListener('fetch', e=>{
+        e.respondWith(fetch(e.request).catch(()=>new Response("Offline")));
+    });
+    `;
+
+    const swBlob = new Blob([swCode], {type:"text/javascript"});
+    const swURL = URL.createObjectURL(swBlob);
+
+    navigator.serviceWorker.register(swURL);
+}
+
+render();
+</script>
+
+</body>
+</html>
